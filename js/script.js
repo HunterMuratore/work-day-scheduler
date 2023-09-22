@@ -1,18 +1,24 @@
 $(function () {
   var header = $('header');
   var currentDay = $('#currentDay');
-  var timeBlockContainer = $('.container-fluid.time-block-container');
+  var timeBlockContainer = $('.time-block-container');
   var dateTime = dayjs().format('dddd, MMMM D, YYYY');
-  var btns = $('.time-block button');
-  var fullHour = dayjs().hour();
-  var currentHour = fullHour > 12 ? fullHour - 12 : fullHour;
-  var suffix;
+  var time = dayjs();
+  var fullHour = time.hour();
 
   // Generate the HTML for each time block with appropriate classes
-  function createTimeBlock(hour) {
-    var timeBlockDiv = $('<div>').addClass('row time-block').attr('id', `hour-${hour}`);
-    var hourDiv = $('<div>').addClass('col-2 col-md-1 hour text-center py-3').text(`${hour}${suffix}`);
-    var textarea = $('<textarea>').addClass('col-8 col-md-10 description').attr('rows', '3').attr('placeholder', 'Enter your text here...');
+  function createTimeBlock(militaryHour) {
+    // Convert time to 12 hour time
+    var hour = (militaryHour - 1) % 12 + 1;
+    // Determine if the hour is in the past, present or future
+    var timeBlockClass = militaryHour > fullHour ? 'future' : militaryHour < fullHour ? 'past' : 'present';
+    // Get any local storage data for each hour
+    var eventText = localStorage.getItem('hour-' + militaryHour);
+
+    // Create the html of the time block container for each hour
+    var timeBlockDiv = $('<div>').addClass('row time-block ' + timeBlockClass).attr('id', `hour-${militaryHour}`);
+    var hourDiv = $('<div>').addClass('col-2 col-md-1 hour text-center py-3').text(`${hour}${militaryHour >= 12 ? 'pm' : 'am'}`);
+    var textarea = $('<textarea>').addClass('col-8 col-md-10 description').attr('rows', '3').attr('placeholder', 'Enter your text here...').val(eventText);
     var button = $('<button>').addClass('btn saveBtn col-2 col-md-1').attr('aria-label', 'save');
     var saveIcon = $('<i>').addClass('fas fa-save').attr('aria-hidden', 'true');
 
@@ -22,24 +28,8 @@ $(function () {
     timeBlockContainer.append(timeBlockDiv);
   }
 
-  // Check each time block and update it's class based off the current time
-  function updateTimeBlocks() {
-    timeBlockContainer.each(function () {
-      var timeBlock = $(this);
-      // Split the id of the time block to get an array of ['hour', 'X'] to get the hour
-      var timeBlockHour = parseInt(timeBlock.attr('id').split('-')[1]);
-
-      if (timeBlockHour < currentHour) {
-        timeBlock.removeClass('present future').addClass('past');
-      } else if (timeBlockHour == currentHour) {
-        timeBlock.removeClass('past future').addClass('present');
-      } else {
-        timeBlock.removeClass('past present').addClass('future');
-      }
-    });
-  }
-
   function saveEvent() {
+    console.log('click');
     // Get the button element that was clicked
     var btn = $(this);
     // Find the textarea element above the button
@@ -68,17 +58,23 @@ $(function () {
     }, 3000);
   }
 
-  currentDay.text(dateTime);
-
   // Generate all time blocks for hours 9am through 5pm
-  for(var i = 9; i <= 17; i++) {
-    suffix = i >= 12 ? 'pm' : 'am';
-    createTimeBlock((i - 1) % 12 + 1);
+  function generateTimeBlocks () {
+    for(var i = 9; i <= 17; i++) {
+      createTimeBlock(i);
+    }
   }
 
-  // Update the time blocks on page load then update every 60 seconds
-  updateTimeBlocks();
-  setInterval(updateTimeBlocks, 60000);
+  generateTimeBlocks();
+  currentDay.text(dateTime);
 
-  btns.click(saveEvent);
+
+  // Update the time blocks on page load then update every 60 seconds
+  setInterval(function(){
+    fullHour = dayjs().hour();
+    timeBlockContainer.empty();
+    generateTimeBlocks();
+  }, 60000);
+
+  timeBlockContainer.on('click', 'button', saveEvent);
 });
